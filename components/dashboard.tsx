@@ -14,20 +14,23 @@ import {
   Clock,
   Search,
   RefreshCw,
-  ExternalLink,
   AlertCircle,
   CheckCircle2,
   XCircle,
   Settings,
 } from "lucide-react"
+import { getDashboardData, invalidateDashboardCache } from "@/lib/dashboard-cache"
 import { MetricsCards } from "@/components/metrics-cards"
 import { FindingsTable } from "@/components/findings-table"
 import { AnalyticsCharts } from "@/components/analytics-charts"
 import { CriticalFindings } from "@/components/critical-findings"
 import { DebugPanel } from "@/components/debug-panel"
-import { SampleDataGenerator } from "@/components/sample-data-generator"
 import { OrganizationsView } from "@/components/organizations-view"
 import { CredentialsSetup } from "@/components/credentials-setup"
+import { SeverityChart } from "@/components/severity-chart"
+import { NessusReports } from "@/components/nessus-reports"
+import { JiraTicketsView } from "@/components/jira-tickets-view"
+import { FindingDetailDialog } from "@/components/finding-detail-dialog"
 
 interface Finding {
   finding_id: string
@@ -50,7 +53,6 @@ interface DashboardData {
 
 export function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
-  const [sampleData, setSampleData] = useState<Finding[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [credentialsError, setCredentialsError] = useState(false)
@@ -59,39 +61,30 @@ export function Dashboard() {
   const [selectedPriority, setSelectedPriority] = useState<string>("all")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
   const [refreshing, setRefreshing] = useState(false)
+  const [activeTab, setActiveTab] = useState("overview")
 
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
     try {
       setError(null)
       setCredentialsError(false)
-      const response = await fetch("/api/blumira/dashboard")
-      const result = await response.json()
 
-      if (!response.ok) {
-        console.error("API Error Details:", result.details)
+      if (forceRefresh) invalidateDashboardCache()
 
-        // Check if it's a credentials issue
-        if (
-          result.error?.includes("BLUMIRA_CLIENT_ID") ||
-          result.error?.includes("BLUMIRA_CLIENT_SECRET") ||
-          result.error?.includes("Authentication failed")
-        ) {
-          setCredentialsError(true)
-        }
-
-        throw new Error(result.error || "Failed to fetch data")
-      }
-
-      console.log("Dashboard data received:", {
-        accountsCount: result.accounts?.length || 0,
-        findingsCount: result.findings?.length || 0,
-        debug: result.debug,
-      })
-
+      const result = await getDashboardData(forceRefresh)
       setData(result)
     } catch (err) {
       console.error("Fetch error:", err)
-      setError(err instanceof Error ? err.message : "An error occurred")
+      const msg = err instanceof Error ? err.message : "An error occurred"
+
+      if (
+        msg.includes("BLUMIRA_CLIENT_ID") ||
+        msg.includes("BLUMIRA_CLIENT_SECRET") ||
+        msg.includes("Authentication failed")
+      ) {
+        setCredentialsError(true)
+      }
+
+      setError(msg)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -104,23 +97,13 @@ export function Dashboard() {
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await fetchData()
+    await fetchData(true)
   }
 
   const handleCredentialsUpdated = () => {
     // Refresh the dashboard data after credentials are updated
     setLoading(true)
     fetchData()
-  }
-
-  const handleSampleDataGenerated = (findings: Finding[]) => {
-    setSampleData(findings)
-    console.log("Sample data generated:", findings.length, "findings")
-  }
-
-  const handleSampleDataCleared = () => {
-    setSampleData(null)
-    console.log("Sample data cleared")
   }
 
   const getPriorityColor = (priority: number) => {
@@ -219,26 +202,18 @@ export function Dashboard() {
     )
   }
 
-  // Use sample data if available, otherwise use real data
-  const currentFindings = sampleData || data?.findings || []
-  const hasRealData = data?.findings && data.findings.length > 0
-  const hasSampleData = sampleData && sampleData.length > 0
+  const findings = data?.findings || []
 
-  if (!hasRealData && !hasSampleData) {
+  if (findings.length === 0) {
     return (
       <div className="space-y-6">
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            No data available. Generate sample data to preview the dashboard or check your API configuration.
+            No findings data available. Please check your API configuration or credentials.
           </AlertDescription>
         </Alert>
         <div className="flex justify-center gap-4">
-          <SampleDataGenerator
-            onDataGenerated={handleSampleDataGenerated}
-            onDataCleared={handleSampleDataCleared}
-            hasData={false}
-          />
           <CredentialsSetup
             onCredentialsUpdated={handleCredentialsUpdated}
             showAsDialog={true}
@@ -254,8 +229,6 @@ export function Dashboard() {
       </div>
     )
   }
-
-  const findings = currentFindings
   const organizations = [...new Set(findings.map((f) => f.org_name))].sort()
   const priorities = [1, 2, 3, 4, 5]
   const statuses = [...new Set(findings.map((f) => f.status_name))].sort()
@@ -300,20 +273,6 @@ export function Dashboard() {
           </div>
 
           <div className="flex gap-2">
-            <Select value={selectedOrg} onValueChange={setSelectedOrg}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Organizations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Organizations</SelectItem>
-                {organizations.map((org) => (
-                  <SelectItem key={org} value={org}>
-                    {org}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             <Select value={selectedPriority} onValueChange={setSelectedPriority}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Priority" />
@@ -345,11 +304,6 @@ export function Dashboard() {
         </div>
 
         <div className="flex items-center gap-2">
-          <SampleDataGenerator
-            onDataGenerated={handleSampleDataGenerated}
-            onDataCleared={handleSampleDataCleared}
-            hasData={hasSampleData}
-          />
           <CredentialsSetup
             onCredentialsUpdated={handleCredentialsUpdated}
             showAsDialog={true}
@@ -374,9 +328,12 @@ export function Dashboard() {
         recentCount={recentFindings.length}
       />
 
+      {/* Severity Chart */}
+      <SeverityChart findings={filteredFindings} />
+
       {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="critical">
             Critical
@@ -388,6 +345,8 @@ export function Dashboard() {
           </TabsTrigger>
           <TabsTrigger value="recent">Recent</TabsTrigger>
           <TabsTrigger value="organizations">Organizations</TabsTrigger>
+          <TabsTrigger value="nessus">Nessus Reports</TabsTrigger>
+          <TabsTrigger value="jira">Jira Tickets</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -425,15 +384,11 @@ export function Dashboard() {
                         <Badge variant={getPriorityColor(finding.priority) as any}>
                           {getPriorityLabel(finding.priority)}
                         </Badge>
-                        <Button size="sm" variant="ghost" asChild>
-                          <a
-                            href={`https://app.blumira.com/${finding.org_id}/reporting/findings/${finding.finding_id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
+                        <FindingDetailDialog
+                          finding={finding}
+                          getPriorityColor={getPriorityColor}
+                          getPriorityLabel={getPriorityLabel}
+                        />
                       </div>
                     </div>
                   ))}
@@ -466,6 +421,14 @@ export function Dashboard() {
 
         <TabsContent value="organizations">
           <OrganizationsView />
+        </TabsContent>
+
+        <TabsContent value="nessus">
+          <NessusReports />
+        </TabsContent>
+
+        <TabsContent value="jira">
+          <JiraTicketsView />
         </TabsContent>
 
         <TabsContent value="analytics">

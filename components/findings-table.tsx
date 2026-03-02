@@ -2,7 +2,8 @@ import type React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, Clock } from "lucide-react"
+import { Clock } from "lucide-react"
+import { FindingDetailDialog } from "@/components/finding-detail-dialog"
 import { formatDistanceToNow } from "date-fns"
 
 interface Finding {
@@ -93,17 +94,11 @@ export function FindingsTable({
                   </div>
                 </div>
 
-                <Button size="sm" variant="outline" asChild>
-                  <a
-                    href={`https://app.blumira.com/${finding.org_id}/reporting/findings/${finding.finding_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    View
-                  </a>
-                </Button>
+                <FindingDetailDialog
+                  finding={finding}
+                  getPriorityColor={getPriorityColor}
+                  getPriorityLabel={getPriorityLabel}
+                />
               </div>
             </div>
           ))}

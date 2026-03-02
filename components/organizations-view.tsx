@@ -28,6 +28,12 @@ import {
   Gauge,
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import { FindingsTab } from "./organization-tabs/findings-tab"
+import { DevicesTab } from "./organization-tabs/devices-tab"
+import { SecurityPostureTab } from "./organization-tabs/security-posture-tab"
+import { AgentHealthTab } from "./organization-tabs/agent-health-tab"
+import { OverviewTab } from "./organization-tabs/overview-tab"
+import { KeysTab } from "./organization-tabs/keys-tab"
 
 interface AgentDevice {
   device_id: string
@@ -398,24 +404,13 @@ export function OrganizationsView() {
                       {getLicenseIcon(org.license)}
                       <span className="ml-1">{org.license}</span>
                     </Badge>
-                    <Button size="sm" variant="outline" asChild>
-                      <a
-                        href={`https://app.blumira.com/${org.account_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        View
-                      </a>
-                    </Button>
                   </div>
                 </div>
               </CardHeader>
 
               <CardContent>
                 <Tabs defaultValue="overview" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="devices">
                       Devices ({org.agentDeviceCount})
@@ -425,257 +420,32 @@ export function OrganizationsView() {
                     </TabsTrigger>
                     <TabsTrigger value="keys">Keys ({org.agentKeyCount})</TabsTrigger>
                     <TabsTrigger value="findings">Findings ({org.findingsCount})</TabsTrigger>
+                    <TabsTrigger value="security">Security</TabsTrigger>
+                    <TabsTrigger value="health">Agent Health</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="overview" className="mt-4">
-                    <div className="grid gap-4 md:grid-cols-4">
-                      {/* License & Users */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                          <Shield className="h-4 w-4" />
-                          License & Users
-                        </h4>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">License:</span>
-                            <Badge className={getLicenseColor(org.license)} variant="outline">
-                              {org.license}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Users:</span>
-                            <span className="font-medium">{org.user_count}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Agent Capacity */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                          <Gauge className="h-4 w-4" />
-                          Agent Capacity
-                        </h4>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Available:</span>
-                            <span className="font-medium">{org.agent_count_available}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Used:</span>
-                            <span
-                              className={`font-medium ${getAgentUtilizationColor(
-                                org.agent_count_used,
-                                org.agent_count_available,
-                              )}`}
-                            >
-                              {org.agent_count_used}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Utilization:</span>
-                            <span
-                              className={`font-medium ${getAgentUtilizationColor(
-                                org.agent_count_used,
-                                org.agent_count_available,
-                              )}`}
-                            >
-                              {org.agent_count_available > 0
-                                ? `${Math.round((org.agent_count_used / org.agent_count_available) * 100)}%`
-                                : "N/A"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Device Status Summary */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                          <Monitor className="h-4 w-4" />
-                          Device Status
-                        </h4>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600 flex items-center gap-1">
-                              <Wifi className="h-3 w-3 text-green-500" />
-                              Online:
-                            </span>
-                            <span className="font-medium">{org.onlineDevices}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600 flex items-center gap-1">
-                              <WifiOff className="h-3 w-3 text-yellow-500" />
-                              Sleeping:
-                            </span>
-                            <span className="font-medium">{org.sleepingDevices}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600 flex items-center gap-1">
-                              <Ban className="h-3 w-3 text-red-500" />
-                              Isolated:
-                            </span>
-                            <span className="font-medium">{org.isolatedDevices}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600 flex items-center gap-1">
-                              <EyeOff className="h-3 w-3 text-gray-500" />
-                              Excluded:
-                            </span>
-                            <span className="font-medium">{org.excludedDevices}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Security Summary */}
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4" />
-                          Security Summary
-                        </h4>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Total Findings:</span>
-                            <span className="font-medium">{org.findingsCount}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Critical:</span>
-                            <span className="font-medium text-red-600">{org.criticalFindingsCount}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Open:</span>
-                            <span className="font-medium text-orange-600">{org.openFindingsCount}</span>
-                          </div>
-                          {org.open_findings !== undefined && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">API Open:</span>
-                              <span className="font-medium text-blue-600">{org.open_findings}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <OverviewTab organization={org} onRefresh={handleRefresh} />
                   </TabsContent>
 
                   <TabsContent value="devices" className="mt-4">
-                    <div className="space-y-3">
-                      {org.agentDevices.length > 0 ? (
-                        org.agentDevices.slice(0, 10).map((device: AgentDevice) => (
-                          <div
-                            key={device.device_id}
-                            className={`p-3 border rounded-lg ${getDeviceStatusColor(device)}`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  {getDeviceStatusIcon(device)}
-                                  <span className="font-medium">{device.hostname}</span>
-                                </div>
-                                <div className="text-sm text-gray-600 space-y-1">
-                                  <div>
-                                    Platform: {device.plat} ({device.arch})
-                                  </div>
-                                  <div>Key: {device.keyname}</div>
-                                  <div>
-                                    Last Alive: {formatDistanceToNow(new Date(device.alive), { addSuffix: true })}
-                                  </div>
-                                  {device.isolation_requested && (
-                                    <div className="text-red-600 text-xs">Isolation Requested</div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex flex-col items-end gap-2">
-                                {getDeviceStatusBadge(device)}
-                                <div className="text-xs text-gray-500">ID: {device.device_id.slice(0, 8)}...</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-4 text-gray-500">No agent devices found</div>
-                      )}
-                      {org.agentDevices.length > 10 && (
-                        <div className="text-center text-sm text-gray-500">
-                          Showing 10 of {org.agentDevices.length} devices
-                          {org.agentDevicesMeta?.total_items && (
-                            <span> ({org.agentDevicesMeta.total_items} total available)</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <DevicesTab organization={org} />
                   </TabsContent>
 
                   <TabsContent value="keys" className="mt-4">
-                    <div className="space-y-3">
-                      {org.agentKeys.length > 0 ? (
-                        org.agentKeys.slice(0, 5).map((key: any, index: number) => (
-                          <div key={key.key_id || index} className="p-3 border rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="font-medium">{key.key_name || key.name || `Key ${index + 1}`}</div>
-                                <div className="text-sm text-gray-500">
-                                  {key.key_id && `ID: ${key.key_id}`}
-                                  {key.created_at && ` • Created: ${new Date(key.created_at).toLocaleDateString()}`}
-                                </div>
-                              </div>
-                              <Badge variant={key.status === "active" ? "default" : "secondary"}>
-                                {key.status || "Unknown"}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-4 text-gray-500">No agent keys found</div>
-                      )}
-                      {org.agentKeys.length > 5 && (
-                        <div className="text-center text-sm text-gray-500">
-                          Showing 5 of {org.agentKeys.length} keys
-                        </div>
-                      )}
-                    </div>
+                    <KeysTab organization={org} />
                   </TabsContent>
 
                   <TabsContent value="findings" className="mt-4">
-                    <div className="space-y-3">
-                      {org.findings.length > 0 ? (
-                        org.findings
-                          .sort((a: any, b: any) => a.priority - b.priority)
-                          .slice(0, 5)
-                          .map((finding: any, index: number) => (
-                            <div key={finding.finding_id || index} className="p-3 border rounded-lg">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="font-medium">{finding.name}</div>
-                                  <div className="text-sm text-gray-500">
-                                    {finding.type_name}
-                                    {finding.created && ` • ${new Date(finding.created).toLocaleDateString()}`}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge
-                                    variant={
-                                      finding.priority === 1
-                                        ? "destructive"
-                                        : finding.priority === 2
-                                          ? "default"
-                                          : "secondary"
-                                    }
-                                  >
-                                    Priority {finding.priority}
-                                  </Badge>
-                                  <Badge variant="outline">{finding.status_name}</Badge>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                      ) : (
-                        <div className="text-center py-4 text-gray-500">No findings found</div>
-                      )}
-                      {org.findings.length > 5 && (
-                        <div className="text-center text-sm text-gray-500">
-                          Showing 5 of {org.findings.length} findings
-                          {org.findingsMeta?.total_items && <span> ({org.findingsMeta.total_items} total)</span>}
-                        </div>
-                      )}
-                    </div>
+                    <FindingsTab organization={org} />
+                  </TabsContent>
+
+                  <TabsContent value="security" className="mt-4">
+                    <SecurityPostureTab organization={org} />
+                  </TabsContent>
+
+                  <TabsContent value="health" className="mt-4">
+                    <AgentHealthTab organization={org} />
                   </TabsContent>
                 </Tabs>
               </CardContent>

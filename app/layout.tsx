@@ -2,9 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'Nexplay Secure Dashboard',
+  description: 'Security monitoring and vulnerability management dashboard',
 }
 
 export default function RootLayout({

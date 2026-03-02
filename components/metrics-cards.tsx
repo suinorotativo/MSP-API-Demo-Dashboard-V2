@@ -1,3 +1,6 @@
+"use client"
+
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Shield, AlertTriangle, Clock, Activity } from "lucide-react"
@@ -22,8 +25,8 @@ interface MetricsCardsProps {
 }
 
 export function MetricsCards({ findings, criticalCount, recentCount }: MetricsCardsProps) {
+  const router = useRouter()
   const openFindings = findings.filter((f) => f.status_name === "Open").length
-  const closedFindings = findings.filter((f) => f.status_name === "Closed").length
   const totalFindings = findings.length
 
   const metrics = [
@@ -35,6 +38,7 @@ export function MetricsCards({ findings, criticalCount, recentCount }: MetricsCa
       color: "text-blue-600",
       bgColor: "bg-blue-50",
       trend: null,
+      href: "/findings/all",
     },
     {
       title: "Critical Findings",
@@ -44,6 +48,7 @@ export function MetricsCards({ findings, criticalCount, recentCount }: MetricsCa
       color: "text-red-600",
       bgColor: "bg-red-50",
       trend: criticalCount > 0 ? "critical" : null,
+      href: "/findings/critical",
     },
     {
       title: "Open Findings",
@@ -53,6 +58,7 @@ export function MetricsCards({ findings, criticalCount, recentCount }: MetricsCa
       color: "text-orange-600",
       bgColor: "bg-orange-50",
       trend: null,
+      href: "/findings/open",
     },
     {
       title: "Recent Findings",
@@ -62,6 +68,7 @@ export function MetricsCards({ findings, criticalCount, recentCount }: MetricsCa
       color: "text-purple-600",
       bgColor: "bg-purple-50",
       trend: null,
+      href: "/findings/recent",
     },
   ]
 
@@ -70,7 +77,11 @@ export function MetricsCards({ findings, criticalCount, recentCount }: MetricsCa
       {metrics.map((metric) => {
         const Icon = metric.icon
         return (
-          <Card key={metric.title} className="relative overflow-hidden">
+          <Card
+            key={metric.title}
+            className="relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => router.push(metric.href)}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">{metric.title}</CardTitle>
               <div className={`p-2 rounded-lg ${metric.bgColor}`}>

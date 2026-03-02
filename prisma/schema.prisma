@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // bcrypt hashed
+  name      String
+  role      String   @default("user") // "admin" or "user"
+  orgId     String   // Maps to Blumira org_id/account_id
+  orgName   String   // Human-readable org name (e.g., "San Ysidro Ranch")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NessusReport {
+  id           String   @id @default(cuid())
+  filename     String   // Original filename
+  displayName  String   // User-friendly name (e.g., "February 2024 External Scan")
+  fileData     Bytes    // The actual file content
+  fileSize     Int      // Size in bytes
+  mimeType     String   // e.g., "application/pdf" or "text/csv"
+  uploadedBy   String   // User ID who uploaded
+  uploadedByName String // User name for display
+  orgId        String   // Organization ID
+  orgName      String   // Organization name
+  scanDate     DateTime // When the scan was performed
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model JiraConfig {
+  id          String   @id @default(cuid())
+  instanceUrl String
+  email       String
+  apiToken    String
+  projectKeys String   @default("")
+  orgId       String   @unique
+  orgName     String
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model JiraTicket {
+  id          String   @id @default(cuid())
+  ticketKey   String
+  summary     String
+  description String   @default("")
+  status      String
+  priority    String   @default("Medium")
+  assignee    String   @default("")
+  reporter    String   @default("")
+  projectKey  String
+  projectName String   @default("")
+  issueType   String   @default("")
+  labels      String   @default("[]")
+  components  String   @default("[]")
+  jiraCreated String   @default("")
+  jiraUpdated String   @default("")
+  resolved    String   @default("")
+  orgId       String
+  orgName     String
+  syncedAt    DateTime @default(now())
+  rawData     String   @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([ticketKey, orgId])
+}

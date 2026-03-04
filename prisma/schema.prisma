@@ -30,6 +30,7 @@ model NessusReport {
   uploadedByName String // User name for display
   orgId        String   // Organization ID
   orgName      String   // Organization name
+  summary      String?  // JSON summary of parsed vulnerabilities
   scanDate     DateTime // When the scan was performed
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

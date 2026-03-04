@@ -287,7 +287,7 @@ export function getPriorityColor(priority: number): string {
     case 2:
       return "#f97316" // orange-500
     case 3:
-      return "#eab308" // yellow-500
+      return "#7c3aed" // violet-600
     case 4:
       return "#22c55e" // green-500
     case 5:

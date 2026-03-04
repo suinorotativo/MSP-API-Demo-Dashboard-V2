@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   HardDrive,
   Download,
-  ExternalLink,
   RefreshCw,
   Shield,
   Activity
@@ -20,6 +19,7 @@ interface QuickActionsPanelProps {
   totalFindings: number
   totalDevices: number
   onRefresh?: () => void
+  onSwitchTab?: (tab: string) => void
 }
 
 export function QuickActionsPanel({
@@ -30,10 +30,38 @@ export function QuickActionsPanel({
   totalFindings,
   totalDevices,
   onRefresh,
+  onSwitchTab,
 }: QuickActionsPanelProps) {
-  const handleExport = () => {
-    // This would trigger the export functionality
-    console.log("Export triggered for", organizationName)
+  const handleExport = async () => {
+    try {
+      const response = await fetch("/api/blumira/organizations/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organizationIds: [accountId],
+          format: "csv",
+          dataType: "summary",
+        }),
+      })
+      if (!response.ok) throw new Error("Export failed")
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${organizationName.replace(/[^a-zA-Z0-9]/g, "_")}_export.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Export error:", error)
+    }
+  }
+
+  const switchTab = (tab: string) => {
+    if (onSwitchTab) {
+      onSwitchTab(tab)
+    }
   }
 
   return (
@@ -49,11 +77,7 @@ export function QuickActionsPanel({
             <Button
               variant="destructive"
               className="w-full justify-start"
-              onClick={() => {
-                // This would navigate to the findings tab with P1 filter
-                const element = document.querySelector('[value="findings"]') as HTMLElement
-                element?.click()
-              }}
+              onClick={() => switchTab("findings")}
             >
               <AlertTriangle className="h-4 w-4 mr-2" />
               View {criticalFindings} Critical Finding{criticalFindings !== 1 ? "s" : ""}
@@ -64,10 +88,7 @@ export function QuickActionsPanel({
           <Button
             variant="outline"
             className="w-full justify-start"
-            onClick={() => {
-              const element = document.querySelector('[value="findings"]') as HTMLElement
-              element?.click()
-            }}
+            onClick={() => switchTab("findings")}
           >
             <Shield className="h-4 w-4 mr-2" />
             View All Findings ({totalFindings})
@@ -77,10 +98,7 @@ export function QuickActionsPanel({
           <Button
             variant="outline"
             className="w-full justify-start"
-            onClick={() => {
-              const element = document.querySelector('[value="devices"]') as HTMLElement
-              element?.click()
-            }}
+            onClick={() => switchTab("devices")}
           >
             <HardDrive className="h-4 w-4 mr-2" />
             Manage Devices ({totalDevices})
@@ -90,10 +108,7 @@ export function QuickActionsPanel({
           <Button
             variant="outline"
             className="w-full justify-start"
-            onClick={() => {
-              const element = document.querySelector('[value="health"]') as HTMLElement
-              element?.click()
-            }}
+            onClick={() => switchTab("health")}
           >
             <Activity className="h-4 w-4 mr-2" />
             Check Agent Health

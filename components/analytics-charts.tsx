@@ -55,7 +55,7 @@ function SimplePieChart({ data, title }: { data: any[]; title: string }) {
     <div className="space-y-3">
       {data.map((item, index) => {
         const percentage = ((item.count / total) * 100).toFixed(1)
-        const colors = ["bg-red-500", "bg-orange-500", "bg-yellow-500", "bg-green-500", "bg-gray-500"]
+        const colors = ["bg-red-500", "bg-orange-500", "bg-violet-600", "bg-green-500", "bg-gray-500"]
         const colorClass = colors[index % colors.length]
 
         return (

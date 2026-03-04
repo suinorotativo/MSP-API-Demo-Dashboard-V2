@@ -23,7 +23,7 @@ interface SeverityChartProps {
 const SEVERITY_COLORS = {
   Critical: "#dc2626",
   High: "#ea580c",
-  Medium: "#ca8a04",
+  Medium: "#7c3aed",
   Low: "#16a34a",
   Info: "#6b7280",
 }

@@ -28,10 +28,17 @@ async function fetchAccountDetails(token: string, accountId: string) {
       const agentsResponse = await fetchWithRetry(`${API_BASE_URL}/msp/accounts/${accountId}/agents/devices`, { headers })
       if (agentsResponse.ok) {
         const agentsData = await agentsResponse.json()
+        console.log(`[ORG ${accountId}] devices: status=${agentsData.status}, dataLen=${agentsData.data?.length ?? 'null'}, keys=${Object.keys(agentsData).join(',')}`)
         if (agentsData.status === "OK" && agentsData.data) {
           agentDevices = agentsData.data
           agentDevicesMeta = agentsData.meta
+        } else if (Array.isArray(agentsData)) {
+          // Some API versions return data directly as an array
+          agentDevices = agentsData
+          console.log(`[ORG ${accountId}] devices returned as direct array, len=${agentsData.length}`)
         }
+      } else {
+        console.warn(`[ORG ${accountId}] devices fetch failed: ${agentsResponse.status}`)
       }
     } catch (error) {
       console.warn(`Error fetching agents for ${accountId}:`, error)
@@ -155,6 +162,11 @@ export async function GET() {
         id: account.account_id,
         name: account.name,
         open_findings: account.open_findings || details.openFindingsCount,
+        // Preserve original account-level data when detail fetch returned defaults
+        agent_count_available: details.agent_count_available || account.agent_count_available || 0,
+        agent_count_used: details.agent_count_used || account.agent_count_used || 0,
+        license: details.license !== "Unknown" ? details.license : (account.license || "Unknown"),
+        user_count: details.user_count || account.user_count || 0,
       })
     }
 

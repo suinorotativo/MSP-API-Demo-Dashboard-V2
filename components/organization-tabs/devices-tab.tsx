@@ -31,6 +31,8 @@ export function DevicesTab({ organization }: DevicesTabProps) {
 
   const devices = organization.agentDevices || []
 
+  console.log(`[DevicesTab] ${organization.name}: agentDevices length=${devices.length}, agentDeviceCount=${organization.agentDeviceCount}, raw type=${typeof organization.agentDevices}, isArray=${Array.isArray(organization.agentDevices)}`)
+
   // Apply filters and sorting
   const filteredAndSortedDevices = useMemo(() => {
     let result = filterDevices(devices, {

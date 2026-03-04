@@ -12,7 +12,7 @@ interface PriorityDistributionChartProps {
 const PRIORITY_COLORS: Record<number, string> = {
   1: "#ef4444", // red-500 - Critical
   2: "#f97316", // orange-500 - High
-  3: "#eab308", // yellow-500 - Medium
+  3: "#7c3aed", // violet-600 - Medium
   4: "#3b82f6", // blue-500 - Low
   5: "#6b7280", // gray-500 - Info
 }

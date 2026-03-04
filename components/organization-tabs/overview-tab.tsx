@@ -9,9 +9,10 @@ import { RecentActivityTimeline } from "../organization-widgets/recent-activity-
 interface OverviewTabProps {
   organization: Organization
   onRefresh?: () => void
+  onSwitchTab?: (tab: string) => void
 }
 
-export function OverviewTab({ organization, onRefresh }: OverviewTabProps) {
+export function OverviewTab({ organization, onRefresh, onSwitchTab }: OverviewTabProps) {
   const findings = organization.findings || []
   const devices = organization.agentDevices || []
   const criticalFindings = findings.filter((f) => f.priority === 1).length
@@ -20,7 +21,7 @@ export function OverviewTab({ organization, onRefresh }: OverviewTabProps) {
     <div className="space-y-6">
       {/* Top Row: Security Grade and Coverage */}
       <div className="grid gap-6 md:grid-cols-2">
-        <SecurityGradeBadge findings={findings} devices={devices} showDetails={true} />
+        <SecurityGradeBadge findings={findings} devices={devices} showDetails={true} onSwitchTab={onSwitchTab} />
         <AgentCoverageIndicator
           used={organization.agent_count_used}
           available={organization.agent_count_available}
@@ -38,6 +39,7 @@ export function OverviewTab({ organization, onRefresh }: OverviewTabProps) {
           totalFindings={findings.length}
           totalDevices={devices.length}
           onRefresh={onRefresh}
+          onSwitchTab={onSwitchTab}
         />
         <RecentActivityTimeline findings={findings} devices={devices} limit={10} />
       </div>

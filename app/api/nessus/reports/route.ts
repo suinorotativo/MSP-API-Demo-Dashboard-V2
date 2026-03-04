@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { parseNessusReport } from "@/lib/nessus-parser"
 
 // GET /api/nessus/reports - List all reports for the user's organization
 export async function GET() {
@@ -25,6 +26,7 @@ export async function GET() {
         uploadedByName: true,
         orgId: true,
         orgName: true,
+        summary: true,
         scanDate: true,
         createdAt: true,
       },
@@ -90,6 +92,11 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
+    // Parse report for summary
+    const mimeType = file.type || "application/octet-stream"
+    const parsed = await parseNessusReport(buffer, mimeType, file.name)
+    const summary = parsed ? JSON.stringify(parsed) : null
+
     // Create the report record
     const report = await prisma.nessusReport.create({
       data: {
@@ -97,12 +104,13 @@ export async function POST(request: NextRequest) {
         displayName,
         fileData: buffer,
         fileSize: buffer.length,
-        mimeType: file.type || "application/octet-stream",
+        mimeType,
         uploadedBy: session.userId,
         uploadedByName: session.name,
         orgId: session.orgId,
         orgName: session.orgName,
         scanDate: new Date(scanDateStr),
+        summary,
       },
     })
 

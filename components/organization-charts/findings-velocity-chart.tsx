@@ -38,14 +38,14 @@ export function FindingsVelocityChart({ findings }: FindingsVelocityChartProps) 
   }
 
   const getTrendIcon = () => {
-    if (velocityData.percentageChange > 10) return <TrendingUp className="h-4 w-4 text-red-500" />
-    if (velocityData.percentageChange < -10) return <TrendingDown className="h-4 w-4 text-green-500" />
+    if (velocityData.percentChange > 10) return <TrendingUp className="h-4 w-4 text-red-500" />
+    if (velocityData.percentChange < -10) return <TrendingDown className="h-4 w-4 text-green-500" />
     return <Minus className="h-4 w-4 text-gray-500" />
   }
 
   const getTrendColor = () => {
-    if (velocityData.percentageChange > 10) return "text-red-600"
-    if (velocityData.percentageChange < -10) return "text-green-600"
+    if (velocityData.percentChange > 10) return "text-red-600"
+    if (velocityData.percentChange < -10) return "text-green-600"
     return "text-gray-600"
   }
 
@@ -58,10 +58,10 @@ export function FindingsVelocityChart({ findings }: FindingsVelocityChartProps) 
             <CardDescription>New findings per day over the last 30 days</CardDescription>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold">{velocityData.current.toFixed(1)}/day</div>
+            <div className="text-2xl font-bold">{(velocityData.thisWeek / 7).toFixed(1)}/day</div>
             <div className={`text-sm flex items-center gap-1 justify-end ${getTrendColor()}`}>
               {getTrendIcon()}
-              {Math.abs(velocityData.percentageChange).toFixed(0)}% vs previous period
+              {Math.abs(velocityData.percentChange).toFixed(0)}% vs previous period
             </div>
           </div>
         </div>

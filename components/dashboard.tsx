@@ -21,7 +21,7 @@ import {
 } from "lucide-react"
 import { getDashboardData, invalidateDashboardCache } from "@/lib/dashboard-cache"
 import { MetricsCards } from "@/components/metrics-cards"
-import { FindingsTable } from "@/components/findings-table"
+
 import { AnalyticsCharts } from "@/components/analytics-charts"
 import { CriticalFindings } from "@/components/critical-findings"
 import { DebugPanel } from "@/components/debug-panel"
@@ -60,6 +60,7 @@ export function Dashboard() {
   const [selectedOrg, setSelectedOrg] = useState<string>("all")
   const [selectedPriority, setSelectedPriority] = useState<string>("all")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>("all")
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
 
@@ -203,6 +204,7 @@ export function Dashboard() {
   }
 
   const findings = data?.findings || []
+  const accounts = data?.accounts || []
 
   if (findings.length === 0) {
     return (
@@ -229,9 +231,26 @@ export function Dashboard() {
       </div>
     )
   }
-  const organizations = [...new Set(findings.map((f) => f.org_name))].sort()
+  // Derive org list from both accounts and findings so orgs without findings still appear
+  const orgNamesFromFindings = findings.map((f) => f.org_name)
+  const orgNamesFromAccounts = accounts.map((a: any) => a.name).filter(Boolean)
+  const organizations = [...new Set([...orgNamesFromFindings, ...orgNamesFromAccounts])].sort()
   const priorities = [1, 2, 3, 4, 5]
   const statuses = [...new Set(findings.map((f) => f.status_name))].sort()
+
+  // Calculate time range cutoff date
+  const getTimeRangeCutoff = (): Date | null => {
+    const now = new Date()
+    switch (selectedTimeRange) {
+      case "24h": return new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      case "7d": return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      case "30d": return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      case "90d": return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+      default: return null
+    }
+  }
+
+  const timeRangeCutoff = getTimeRangeCutoff()
 
   // Filter findings based on search and filters
   const filteredFindings = findings.filter((finding) => {
@@ -243,8 +262,9 @@ export function Dashboard() {
     const matchesOrg = selectedOrg === "all" || finding.org_name === selectedOrg
     const matchesPriority = selectedPriority === "all" || finding.priority.toString() === selectedPriority
     const matchesStatus = selectedStatus === "all" || finding.status_name === selectedStatus
+    const matchesTime = !timeRangeCutoff || new Date(finding.created) >= timeRangeCutoff
 
-    return matchesSearch && matchesOrg && matchesPriority && matchesStatus
+    return matchesSearch && matchesOrg && matchesPriority && matchesStatus && matchesTime
   })
 
   const criticalFindings = filteredFindings.filter((f) => f.priority === 1)
@@ -273,6 +293,20 @@ export function Dashboard() {
           </div>
 
           <div className="flex gap-2">
+            <Select value={selectedOrg} onValueChange={setSelectedOrg}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Site" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sites</SelectItem>
+                {organizations.map((org) => (
+                  <SelectItem key={org} value={org}>
+                    {org}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={selectedPriority} onValueChange={setSelectedPriority}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Priority" />
@@ -298,6 +332,19 @@ export function Dashboard() {
                     {status}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedTimeRange} onValueChange={setSelectedTimeRange}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Time Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="24h">Last 24 Hours</SelectItem>
+                <SelectItem value="7d">Last 7 Days</SelectItem>
+                <SelectItem value="30d">Last 30 Days</SelectItem>
+                <SelectItem value="90d">Last 90 Days</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -333,17 +380,8 @@ export function Dashboard() {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="critical">
-            Critical
-            {criticalFindings.length > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {criticalFindings.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="recent">Recent</TabsTrigger>
           <TabsTrigger value="organizations">Organizations</TabsTrigger>
           <TabsTrigger value="nessus">Nessus Reports</TabsTrigger>
           <TabsTrigger value="jira">Jira Tickets</TabsTrigger>
@@ -398,29 +436,9 @@ export function Dashboard() {
           </div>
         </TabsContent>
 
-        <TabsContent value="critical">
-          <CriticalFindings
-            findings={criticalFindings}
-            getPriorityColor={getPriorityColor}
-            getPriorityLabel={getPriorityLabel}
-            getStatusIcon={getStatusIcon}
-            showAll={true}
-          />
-        </TabsContent>
-
-        <TabsContent value="recent">
-          <FindingsTable
-            findings={recentFindings}
-            getPriorityColor={getPriorityColor}
-            getPriorityLabel={getPriorityLabel}
-            getStatusIcon={getStatusIcon}
-            title="Recent Findings"
-            description="Findings from the past 7 days"
-          />
-        </TabsContent>
 
         <TabsContent value="organizations">
-          <OrganizationsView />
+          <OrganizationsView selectedSiteName={selectedOrg} />
         </TabsContent>
 
         <TabsContent value="nessus">

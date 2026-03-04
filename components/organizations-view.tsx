@@ -87,12 +87,17 @@ interface OrganizationsData {
   error?: string
 }
 
-export function OrganizationsView() {
+interface OrganizationsViewProps {
+  selectedSiteName?: string
+}
+
+export function OrganizationsView({ selectedSiteName = "all" }: OrganizationsViewProps) {
   const [data, setData] = useState<OrganizationsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [refreshing, setRefreshing] = useState(false)
+  const [orgTabs, setOrgTabs] = useState<Record<string, string>>({})
 
   const fetchData = async () => {
     try {
@@ -215,15 +220,40 @@ export function OrganizationsView() {
   }
 
   const organizations = data?.organizations || []
-  const totals = data?.totals || {}
 
-  // Filter organizations based on search
-  const filteredOrganizations = organizations.filter(
+  // Filter organizations based on dashboard-level site selector
+  const siteFiltered = selectedSiteName === "all"
+    ? organizations
+    : organizations.filter((org) => org.name === selectedSiteName)
+
+  const filteredOrganizations = siteFiltered.filter(
     (org) =>
       org.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       org.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       org.license?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
+
+  // Compute totals from the filtered set so summary cards reflect the selection
+  const totals = selectedSiteName === "all"
+    ? (data?.totals || {})
+    : {
+        totalAgentDevices: siteFiltered.reduce((s, o) => s + o.agentDeviceCount, 0),
+        totalAgentKeys: siteFiltered.reduce((s, o) => s + o.agentKeyCount, 0),
+        totalFindings: siteFiltered.reduce((s, o) => s + o.findingsCount, 0),
+        totalCriticalFindings: siteFiltered.reduce((s, o) => s + o.criticalFindingsCount, 0),
+        totalOpenFindings: siteFiltered.reduce((s, o) => s + o.openFindingsCount, 0),
+        totalOnlineDevices: siteFiltered.reduce((s, o) => s + o.onlineDevices, 0),
+        totalSleepingDevices: siteFiltered.reduce((s, o) => s + o.sleepingDevices, 0),
+        totalIsolatedDevices: siteFiltered.reduce((s, o) => s + o.isolatedDevices, 0),
+        totalExcludedDevices: siteFiltered.reduce((s, o) => s + o.excludedDevices, 0),
+        totalAgentCountAvailable: siteFiltered.reduce((s, o) => s + o.agent_count_available, 0),
+        totalAgentCountUsed: siteFiltered.reduce((s, o) => s + o.agent_count_used, 0),
+        totalUserCount: siteFiltered.reduce((s, o) => s + o.user_count, 0),
+        licenseBreakdown: siteFiltered.reduce((acc: Record<string, number>, o) => {
+          acc[o.license] = (acc[o.license] || 0) + 1
+          return acc
+        }, {}),
+      }
 
   return (
     <div className="space-y-6">
@@ -238,10 +268,10 @@ export function OrganizationsView() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              placeholder="Search organizations..."
+              placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 w-48"
             />
           </div>
           <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
@@ -259,8 +289,8 @@ export function OrganizationsView() {
             <Building2 className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">{organizations.length}</div>
-            <p className="text-xs text-gray-500 mt-1">MSP accounts</p>
+            <div className="text-2xl font-bold text-gray-900">{siteFiltered.length}</div>
+            <p className="text-xs text-gray-500 mt-1">{selectedSiteName === "all" ? "MSP accounts" : "Selected site"}</p>
           </CardContent>
         </Card>
 
@@ -409,7 +439,7 @@ export function OrganizationsView() {
               </CardHeader>
 
               <CardContent>
-                <Tabs defaultValue="overview" className="w-full">
+                <Tabs value={orgTabs[org.id] || "overview"} onValueChange={(tab) => setOrgTabs(prev => ({ ...prev, [org.id]: tab }))} className="w-full">
                   <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="devices">
@@ -425,7 +455,7 @@ export function OrganizationsView() {
                   </TabsList>
 
                   <TabsContent value="overview" className="mt-4">
-                    <OverviewTab organization={org} onRefresh={handleRefresh} />
+                    <OverviewTab organization={org} onRefresh={handleRefresh} onSwitchTab={(tab) => setOrgTabs(prev => ({ ...prev, [org.id]: tab }))} />
                   </TabsContent>
 
                   <TabsContent value="devices" className="mt-4">

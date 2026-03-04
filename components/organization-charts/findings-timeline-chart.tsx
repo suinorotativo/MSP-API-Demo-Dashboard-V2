@@ -72,7 +72,7 @@ export function FindingsTimelineChart({ findings }: FindingsTimelineChartProps) 
             <Legend />
             <Line type="monotone" dataKey="P1" stroke="#ef4444" strokeWidth={2} name="Critical (P1)" />
             <Line type="monotone" dataKey="P2" stroke="#f97316" strokeWidth={2} name="High (P2)" />
-            <Line type="monotone" dataKey="P3" stroke="#eab308" strokeWidth={2} name="Medium (P3)" />
+            <Line type="monotone" dataKey="P3" stroke="#7c3aed" strokeWidth={2} name="Medium (P3)" />
             <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={2} name="Total" />
           </LineChart>
         </ResponsiveContainer>

@@ -1,22 +1,58 @@
-import type { Finding, AgentDevice, DeviceHealth, SecurityGrade } from "../organization-tabs/types"
+import type { Finding, AgentDevice, DeviceHealth, SecurityGrade, GlobalBenchmark, Organization } from "../organization-tabs/types"
 
 /**
- * Calculate security score for an organization
- * Score ranges from 0-100, with penalties for findings and offline devices
+ * Calculate the global benchmark across all organizations.
+ * Returns the average critical and high finding rates (as fraction of total findings).
  */
-export function calculateSecurityScore(findings: Finding[], devices: AgentDevice[]): number {
-  const criticalPenalty = findings.filter((f) => f.priority === 1).length * 10
-  const highPenalty = findings.filter((f) => f.priority === 2).length * 5
-  const mediumPenalty = findings.filter((f) => f.priority === 3).length * 2
+export function calculateGlobalBenchmark(organizations: Organization[]): GlobalBenchmark {
+  let totalFindings = 0
+  let totalCritical = 0
+  let totalHigh = 0
 
-  const onlineDevices = devices.filter((d) => !d.is_sleeping && !d.is_excluded && !d.is_isolated).length
+  for (const org of organizations) {
+    const findings = org.findings || []
+    totalFindings += findings.length
+    totalCritical += findings.filter((f) => f.priority === 1).length
+    totalHigh += findings.filter((f) => f.priority === 2).length
+  }
+
+  const denominator = Math.max(totalFindings, 1)
+  return {
+    globalCriticalRate: totalCritical / denominator,
+    globalHighRate: totalHigh / denominator,
+    totalFindings,
+  }
+}
+
+/**
+ * Calculate security score for an organization based on deviation from global benchmark.
+ * A site at the global average scores ~100 (before device adjustments).
+ * Sites with more criticals/highs than average score lower; fewer score higher.
+ */
+export function calculateSecurityScore(findings: Finding[], devices: AgentDevice[], benchmark?: GlobalBenchmark): number {
+  const totalFindings = Math.max(findings.length, 1)
+  const siteCriticalRate = findings.filter((f) => f.priority === 1).length / totalFindings
+  const siteHighRate = findings.filter((f) => f.priority === 2).length / totalFindings
+
+  const globalCriticalRate = benchmark?.globalCriticalRate ?? siteCriticalRate
+  const globalHighRate = benchmark?.globalHighRate ?? siteHighRate
+
+  // Deviation: positive = worse than average
+  const criticalDeviation = siteCriticalRate - globalCriticalRate
+  const highDeviation = siteHighRate - globalHighRate
+
+  // Scale deviations into point penalties/bonuses
+  const criticalPenalty = criticalDeviation * 200  // 10% worse → -20 pts
+  const highPenalty = highDeviation * 100           // 10% worse → -10 pts
+
   const totalDevices = devices.length
+  const onlineDevices = devices.filter((d) => !d.is_sleeping && !d.is_excluded && !d.is_isolated).length
   const deviceHealthBonus = totalDevices > 0 ? (onlineDevices / totalDevices) * 20 : 0
 
   const offlinePercentage = totalDevices > 0 ? ((totalDevices - onlineDevices) / totalDevices) * 100 : 0
   const offlinePenalty = offlinePercentage * 0.2
 
-  const score = Math.max(0, 100 - criticalPenalty - highPenalty - mediumPenalty + deviceHealthBonus - offlinePenalty)
+  const score = Math.min(100, Math.max(0, 100 - criticalPenalty - highPenalty + deviceHealthBonus - offlinePenalty))
   return Math.round(score)
 }
 

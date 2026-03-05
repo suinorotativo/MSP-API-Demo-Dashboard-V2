@@ -2,18 +2,19 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Shield, TrendingUp, TrendingDown, Minus, Info } from "lucide-react"
-import type { Finding, AgentDevice, SecurityGrade } from "../organization-tabs/types"
+import type { Finding, AgentDevice, SecurityGrade, GlobalBenchmark } from "../organization-tabs/types"
 import { calculateSecurityScore, calculateSecurityGrade, getSecurityGradeColor } from "../organization-utils/calculations"
 
 interface SecurityGradeBadgeProps {
   findings: Finding[]
   devices: AgentDevice[]
+  globalBenchmark?: GlobalBenchmark
   showDetails?: boolean
   onSwitchTab?: (tab: string) => void
 }
 
-export function SecurityGradeBadge({ findings, devices, showDetails = true, onSwitchTab }: SecurityGradeBadgeProps) {
-  const score = calculateSecurityScore(findings, devices)
+export function SecurityGradeBadge({ findings, devices, globalBenchmark, showDetails = true, onSwitchTab }: SecurityGradeBadgeProps) {
+  const score = calculateSecurityScore(findings, devices, globalBenchmark)
   const grade = calculateSecurityGrade(score)
   const gradeColor = getSecurityGradeColor(grade)
 
@@ -25,9 +26,18 @@ export function SecurityGradeBadge({ findings, devices, showDetails = true, onSw
   const totalDevices = devices.length
   const offlineDevices = totalDevices - onlineDevices
 
-  const criticalPenalty = criticalCount * 10
-  const highPenalty = highCount * 5
-  const mediumPenalty = mediumCount * 2
+  const totalFindings = Math.max(findings.length, 1)
+  const siteCriticalRate = criticalCount / totalFindings
+  const siteHighRate = highCount / totalFindings
+
+  const globalCriticalRate = globalBenchmark?.globalCriticalRate ?? siteCriticalRate
+  const globalHighRate = globalBenchmark?.globalHighRate ?? siteHighRate
+
+  const criticalDeviation = siteCriticalRate - globalCriticalRate
+  const highDeviation = siteHighRate - globalHighRate
+
+  const criticalPenalty = Math.round(criticalDeviation * 200)
+  const highPenalty = Math.round(highDeviation * 100)
   const deviceHealthBonus = totalDevices > 0 ? Math.round((onlineDevices / totalDevices) * 20) : 0
   const offlinePenalty = totalDevices > 0 ? Math.round(((totalDevices - onlineDevices) / totalDevices) * 100 * 0.2) : 0
 
@@ -107,29 +117,29 @@ export function SecurityGradeBadge({ findings, devices, showDetails = true, onSw
             <div className="mt-4 pt-4 border-t">
               <div className="flex items-center gap-1.5 mb-2">
                 <Info className="h-3.5 w-3.5 text-gray-400" />
-                <span className="text-xs font-medium text-gray-500">Score Breakdown</span>
+                <span className="text-xs font-medium text-gray-500">Score Breakdown (vs Fleet Average)</span>
               </div>
               <div className="space-y-1 text-xs text-gray-600">
                 <div className="flex justify-between">
                   <span>Base score</span>
                   <span className="font-mono">100</span>
                 </div>
-                {criticalPenalty > 0 && (
-                  <div className="flex justify-between text-red-600">
-                    <span>Critical findings ({criticalCount} x 10)</span>
-                    <span className="font-mono">-{criticalPenalty}</span>
+                {globalBenchmark && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>Fleet avg critical rate</span>
+                    <span className="font-mono">{(globalCriticalRate * 100).toFixed(1)}%</span>
                   </div>
                 )}
-                {highPenalty > 0 && (
-                  <div className="flex justify-between text-orange-600">
-                    <span>High findings ({highCount} x 5)</span>
-                    <span className="font-mono">-{highPenalty}</span>
+                {criticalPenalty !== 0 && (
+                  <div className={`flex justify-between ${criticalPenalty > 0 ? "text-red-600" : "text-green-600"}`}>
+                    <span>Critical: {(siteCriticalRate * 100).toFixed(1)}% vs {(globalCriticalRate * 100).toFixed(1)}% avg</span>
+                    <span className="font-mono">{criticalPenalty > 0 ? "-" : "+"}{Math.abs(criticalPenalty)}</span>
                   </div>
                 )}
-                {mediumPenalty > 0 && (
-                  <div className="flex justify-between text-yellow-600">
-                    <span>Medium findings ({mediumCount} x 2)</span>
-                    <span className="font-mono">-{mediumPenalty}</span>
+                {highPenalty !== 0 && (
+                  <div className={`flex justify-between ${highPenalty > 0 ? "text-orange-600" : "text-green-600"}`}>
+                    <span>High: {(siteHighRate * 100).toFixed(1)}% vs {(globalHighRate * 100).toFixed(1)}% avg</span>
+                    <span className="font-mono">{highPenalty > 0 ? "-" : "+"}{Math.abs(highPenalty)}</span>
                   </div>
                 )}
                 {deviceHealthBonus > 0 && (

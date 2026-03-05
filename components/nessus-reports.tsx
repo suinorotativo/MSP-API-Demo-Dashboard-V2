@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Dialog,
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Upload,
   Download,
@@ -37,7 +39,18 @@ import {
   Shield,
   Monitor,
   X,
+  TrendingUp,
 } from "lucide-react"
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts"
 
 interface ReportSummary {
   totalVulnerabilities: number
@@ -167,7 +180,80 @@ function SeverityCount({ label, count, color }: { label: string; count: number; 
   )
 }
 
-export function NessusReports() {
+function TrendChart({ reports, onClose }: { reports: NessusReport[]; onClose: () => void }) {
+  const trendData = reports
+    .map((r) => {
+      const summary: ReportSummary | null = r.summary ? JSON.parse(r.summary) : null
+      if (!summary) return null
+      return {
+        date: r.scanDate,
+        label: new Date(r.scanDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" }),
+        Critical: summary.critical,
+        High: summary.high,
+        Medium: summary.medium,
+        Low: summary.low,
+        Info: summary.info,
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => a!.date.localeCompare(b!.date)) as {
+    date: string; label: string; Critical: number; High: number; Medium: number; Low: number; Info: number
+  }[]
+
+  return (
+    <Card className="border-2 border-blue-200 bg-blue-50/30 dark:bg-blue-950/20 dark:border-blue-800 animate-in fade-in slide-in-from-top-2 duration-300">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-blue-600" />
+            <CardTitle className="text-base">Vulnerability Trend</CardTitle>
+            <Badge variant="secondary" className="text-xs">{reports.length} scans selected</Badge>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-7 w-7 p-0">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <CardDescription>Severity breakdown across selected scans over time</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {trendData.length < 2 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Need at least 2 scans with parsed summaries to show a trend.
+          </p>
+        ) : (
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={trendData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+              <YAxis />
+              <Tooltip
+                labelFormatter={(_label, payload) => {
+                  if (payload?.[0]?.payload?.date) {
+                    return `Scan: ${new Date(payload[0].payload.date).toLocaleDateString()}`
+                  }
+                  return _label
+                }}
+              />
+              <Legend />
+              <Line type="monotone" dataKey="Critical" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} name="Critical" />
+              <Line type="monotone" dataKey="High" stroke="#f97316" strokeWidth={2} dot={{ r: 4 }} name="High" />
+              <Line type="monotone" dataKey="Medium" stroke="#eab308" strokeWidth={2} dot={{ r: 4 }} name="Medium" />
+              <Line type="monotone" dataKey="Low" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} name="Low" />
+              <Line type="monotone" dataKey="Info" stroke="#6b7280" strokeWidth={1} dot={{ r: 3 }} name="Info" strokeDasharray="4 2" />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface NessusReportsProps {
+  organizations?: string[]
+  selectedOrg?: string
+}
+
+export function NessusReports({ organizations = [], selectedOrg = "all" }: NessusReportsProps) {
   const [reports, setReports] = useState<NessusReport[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -176,10 +262,12 @@ export function NessusReports() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null)
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadForm, setUploadForm] = useState({
     displayName: "",
     scanDate: new Date().toISOString().split("T")[0],
+    orgName: selectedOrg !== "all" ? selectedOrg : "",
   })
 
   const fetchReports = async () => {
@@ -228,6 +316,9 @@ export function NessusReports() {
       formData.append("file", file)
       formData.append("displayName", uploadForm.displayName)
       formData.append("scanDate", uploadForm.scanDate)
+      if (uploadForm.orgName) {
+        formData.append("orgName", uploadForm.orgName)
+      }
 
       const response = await fetch("/api/nessus/reports", {
         method: "POST",
@@ -245,6 +336,7 @@ export function NessusReports() {
       setUploadForm({
         displayName: "",
         scanDate: new Date().toISOString().split("T")[0],
+        orgName: selectedOrg !== "all" ? selectedOrg : "",
       })
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
@@ -294,6 +386,7 @@ export function NessusReports() {
 
       setDeleteConfirmId(null)
       if (selectedReportId === reportId) setSelectedReportId(null)
+      setCheckedIds((prev) => { const next = new Set(prev); next.delete(reportId); return next })
       await fetchReports()
     } catch (err) {
       console.error("Error deleting report:", err)
@@ -301,20 +394,57 @@ export function NessusReports() {
     }
   }
 
-  const selectedReport = reports.find((r) => r.id === selectedReportId)
-  const selectedSummary: ReportSummary | null =
-    selectedReport?.summary ? JSON.parse(selectedReport.summary) : null
+  const filteredReports = selectedOrg === "all"
+    ? reports
+    : reports.filter((r) => r.orgName === selectedOrg)
+
+  const checkedReports = filteredReports.filter((r) => checkedIds.has(r.id))
+
+  // For single-check or row-click, show the SummaryTile
+  const singleReport =
+    checkedIds.size === 1
+      ? reports.find((r) => r.id === [...checkedIds][0])
+      : reports.find((r) => r.id === selectedReportId)
+  const singleSummary: ReportSummary | null =
+    singleReport?.summary ? JSON.parse(singleReport.summary) : null
+
+  const toggleCheck = (id: string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    const allFilteredIds = filteredReports.map((r) => r.id)
+    const allChecked = allFilteredIds.every((id) => checkedIds.has(id))
+    if (allChecked) {
+      setCheckedIds(new Set())
+    } else {
+      setCheckedIds(new Set(allFilteredIds))
+    }
+  }
 
   return (
     <div className="space-y-4">
-      {/* Summary Tile — appears dynamically when a report is selected */}
-      {selectedReport && selectedSummary && (
+      {/* Dynamic box: trend chart for multi-select, summary tile for single */}
+      {checkedIds.size >= 2 ? (
+        <TrendChart reports={checkedReports} onClose={() => setCheckedIds(new Set())} />
+      ) : checkedIds.size === 1 && singleReport && singleSummary ? (
         <SummaryTile
-          report={selectedReport}
-          summary={selectedSummary}
+          report={singleReport}
+          summary={singleSummary}
+          onClose={() => setCheckedIds(new Set())}
+        />
+      ) : singleReport && singleSummary ? (
+        <SummaryTile
+          report={singleReport}
+          summary={singleSummary}
           onClose={() => setSelectedReportId(null)}
         />
-      )}
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -360,6 +490,28 @@ export function NessusReports() {
                         required
                       />
                     </div>
+                    {organizations.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Location</Label>
+                        <Select
+                          value={uploadForm.orgName}
+                          onValueChange={(value) =>
+                            setUploadForm({ ...uploadForm, orgName: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a location..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {organizations.map((org) => (
+                              <SelectItem key={org} value={org}>
+                                {org}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="scanDate">Scan Date</Label>
                       <Input
@@ -435,7 +587,7 @@ export function NessusReports() {
                 <div key={i} className="h-12 bg-gray-100 rounded animate-pulse" />
               ))}
             </div>
-          ) : reports.length === 0 ? (
+          ) : filteredReports.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium">No reports uploaded yet</p>
@@ -448,7 +600,14 @@ export function NessusReports() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={filteredReports.length > 0 && filteredReports.every((r) => checkedIds.has(r.id))}
+                        onCheckedChange={toggleAll}
+                      />
+                    </TableHead>
                     <TableHead>Report Name</TableHead>
+                    <TableHead>Location</TableHead>
                     <TableHead>Scan Date</TableHead>
                     <TableHead>Uploaded By</TableHead>
                     <TableHead>File Size</TableHead>
@@ -457,17 +616,18 @@ export function NessusReports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reports.map((report) => {
+                  {filteredReports.map((report) => {
                     const summary: ReportSummary | null = report.summary
                       ? JSON.parse(report.summary)
                       : null
                     const isSelected = selectedReportId === report.id
+                    const isChecked = checkedIds.has(report.id)
 
                     return (
                       <TableRow
                         key={report.id}
                         className={`cursor-pointer transition-colors ${
-                          isSelected
+                          isSelected || isChecked
                             ? "bg-blue-50 dark:bg-blue-950/30"
                             : summary
                               ? "hover:bg-muted/50"
@@ -479,6 +639,12 @@ export function NessusReports() {
                           }
                         }}
                       >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={() => toggleCheck(report.id)}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-gray-400" />
@@ -506,6 +672,7 @@ export function NessusReports() {
                             </div>
                           )}
                         </TableCell>
+                        <TableCell className="text-sm">{report.orgName}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3 text-gray-400" />

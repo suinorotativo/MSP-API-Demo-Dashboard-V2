@@ -442,7 +442,7 @@ export function Dashboard() {
         </TabsContent>
 
         <TabsContent value="nessus">
-          <NessusReports />
+          <NessusReports organizations={organizations} selectedOrg={selectedOrg} />
         </TabsContent>
 
         <TabsContent value="jira">

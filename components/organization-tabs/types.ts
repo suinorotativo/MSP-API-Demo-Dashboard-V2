@@ -101,6 +101,12 @@ export interface OrganizationsData {
   error?: string
 }
 
+export interface GlobalBenchmark {
+  globalCriticalRate: number
+  globalHighRate: number
+  totalFindings: number
+}
+
 export type DeviceHealth = "healthy" | "warning" | "critical"
 
 export type SecurityGrade = "A" | "B" | "C" | "D" | "F"

@@ -34,6 +34,7 @@ import { SecurityPostureTab } from "./organization-tabs/security-posture-tab"
 import { AgentHealthTab } from "./organization-tabs/agent-health-tab"
 import { OverviewTab } from "./organization-tabs/overview-tab"
 import { KeysTab } from "./organization-tabs/keys-tab"
+import { calculateGlobalBenchmark } from "./organization-utils/calculations"
 
 interface AgentDevice {
   device_id: string
@@ -220,6 +221,7 @@ export function OrganizationsView({ selectedSiteName = "all" }: OrganizationsVie
   }
 
   const organizations = data?.organizations || []
+  const globalBenchmark = calculateGlobalBenchmark(organizations as any)
 
   // Filter organizations based on dashboard-level site selector
   const siteFiltered = selectedSiteName === "all"
@@ -455,7 +457,7 @@ export function OrganizationsView({ selectedSiteName = "all" }: OrganizationsVie
                   </TabsList>
 
                   <TabsContent value="overview" className="mt-4">
-                    <OverviewTab organization={org} onRefresh={handleRefresh} onSwitchTab={(tab) => setOrgTabs(prev => ({ ...prev, [org.id]: tab }))} />
+                    <OverviewTab organization={org} globalBenchmark={globalBenchmark} onRefresh={handleRefresh} onSwitchTab={(tab) => setOrgTabs(prev => ({ ...prev, [org.id]: tab }))} />
                   </TabsContent>
 
                   <TabsContent value="devices" className="mt-4">
@@ -471,7 +473,7 @@ export function OrganizationsView({ selectedSiteName = "all" }: OrganizationsVie
                   </TabsContent>
 
                   <TabsContent value="security" className="mt-4">
-                    <SecurityPostureTab organization={org} />
+                    <SecurityPostureTab organization={org} globalBenchmark={globalBenchmark} />
                   </TabsContent>
 
                   <TabsContent value="health" className="mt-4">

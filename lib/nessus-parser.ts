@@ -58,36 +58,20 @@ async function parsePdf(buffer: Buffer): Promise<NessusSummary | null> {
       }
     }
 
-    // Try to count severity mentions in structured report lines
-    // Nessus PDFs often list vulnerabilities with severity labels
+    // Count vulnerability severity labels that appear as standalone lines
+    // In Nessus PDFs each vulnerability entry starts with its severity on its own line:
+    //   HIGH
+    //   7.3--108714
+    //   PCI DSS Compliance : Scan Interference
     const lines = text.split(/\n/)
     for (const line of lines) {
-      const lower = line.toLowerCase()
-      // Look for lines that indicate a vulnerability entry with a severity
-      if (lower.includes("critical")) counts.critical++
-      if (lower.includes("high") && !lower.includes("higher")) counts.high++
-      if (lower.includes("medium")) counts.medium++
-      if (lower.includes("low") && !lower.includes("lower") && !lower.includes("below") && !lower.includes("follow")) counts.low++
-    }
-
-    // Rough dedup — severity keywords can appear in headers/summaries,
-    // so cap overly large counts to something reasonable
-    // Better: look for structured summary tables in the PDF
-    const summaryPatterns = [
-      { re: /critical[:\s]+(\d+)/i, key: "critical" as const },
-      { re: /high[:\s]+(\d+)/i, key: "high" as const },
-      { re: /medium[:\s]+(\d+)/i, key: "medium" as const },
-      { re: /low[:\s]+(\d+)/i, key: "low" as const },
-      { re: /info(?:rmational)?[:\s]+(\d+)/i, key: "info" as const },
-    ]
-
-    // If the PDF has a summary table with exact counts, prefer those
-    let foundStructuredCounts = false
-    for (const { re, key } of summaryPatterns) {
-      const match = text.match(re)
-      if (match) {
-        counts[key] = parseInt(match[1], 10)
-        foundStructuredCounts = true
+      const trimmed = line.trim()
+      switch (trimmed) {
+        case "CRITICAL": counts.critical++; break
+        case "HIGH": counts.high++; break
+        case "MEDIUM": counts.medium++; break
+        case "LOW": counts.low++; break
+        case "INFO": counts.info++; break
       }
     }
 
@@ -97,7 +81,7 @@ async function parsePdf(buffer: Buffer): Promise<NessusSummary | null> {
     const pdfSummary = buildPdfSummary(text, data.numpages)
 
     return {
-      totalVulnerabilities: foundStructuredCounts ? total : 0,
+      totalVulnerabilities: total,
       ...counts,
       topHosts: Array.from(hosts).slice(0, 5),
       pdfSummary,

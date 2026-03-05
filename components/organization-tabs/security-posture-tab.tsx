@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Shield, TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react"
-import type { Organization } from "./types"
+import type { Organization, GlobalBenchmark } from "./types"
 import { PriorityDistributionChart } from "../organization-charts/priority-distribution-chart"
 import { FindingsVelocityChart } from "../organization-charts/findings-velocity-chart"
 import { StatusBreakdownChart } from "../organization-charts/status-breakdown-chart"
@@ -17,14 +17,15 @@ import {
 
 interface SecurityPostureTabProps {
   organization: Organization
+  globalBenchmark?: GlobalBenchmark
 }
 
-export function SecurityPostureTab({ organization }: SecurityPostureTabProps) {
+export function SecurityPostureTab({ organization, globalBenchmark }: SecurityPostureTabProps) {
   const findings = organization.findings || []
   const devices = organization.agentDevices || []
 
   // Calculate security metrics
-  const securityScore = calculateSecurityScore(findings, devices)
+  const securityScore = calculateSecurityScore(findings, devices, globalBenchmark)
   const securityGrade = calculateSecurityGrade(securityScore)
   const gradeColor = getSecurityGradeColor(securityGrade)
 

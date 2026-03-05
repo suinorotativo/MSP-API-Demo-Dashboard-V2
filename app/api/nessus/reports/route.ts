@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File | null
     const displayName = formData.get("displayName") as string | null
     const scanDateStr = formData.get("scanDate") as string | null
+    const orgNameOverride = formData.get("orgName") as string | null
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
         uploadedBy: session.userId,
         uploadedByName: session.name,
         orgId: session.orgId,
-        orgName: session.orgName,
+        orgName: orgNameOverride || session.orgName,
         scanDate: new Date(scanDateStr),
         summary,
       },

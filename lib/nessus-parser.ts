@@ -4,7 +4,6 @@ export interface NessusSummary {
   high: number
   medium: number
   low: number
-  info: number
   topHosts: string[]
   pdfSummary?: string
 }
@@ -45,7 +44,7 @@ async function parsePdf(buffer: Buffer): Promise<NessusSummary | null> {
     const text = data.text
 
     // Try to extract severity counts from common Nessus PDF patterns
-    const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
+    const counts = { critical: 0, high: 0, medium: 0, low: 0 }
     const hosts = new Set<string>()
 
     // Match IP addresses as hosts
@@ -71,11 +70,10 @@ async function parsePdf(buffer: Buffer): Promise<NessusSummary | null> {
         case "HIGH": counts.high++; break
         case "MEDIUM": counts.medium++; break
         case "LOW": counts.low++; break
-        case "INFO": counts.info++; break
       }
     }
 
-    const total = counts.critical + counts.high + counts.medium + counts.low + counts.info
+    const total = counts.critical + counts.high + counts.medium + counts.low
 
     // Build a short text summary from the first meaningful chunk of the PDF
     const pdfSummary = buildPdfSummary(text, data.numpages)
@@ -107,7 +105,7 @@ function buildPdfSummary(text: string, pageCount: number): string {
 }
 
 function parseNessusXml(content: string): NessusSummary {
-  const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
+  const counts = { critical: 0, high: 0, medium: 0, low: 0 }
   const hosts = new Set<string>()
 
   // Extract host names from <ReportHost name="...">
@@ -133,13 +131,11 @@ function parseNessusXml(content: string): NessusSummary {
       case 1:
         counts.low++
         break
-      case 0:
-        counts.info++
-        break
+      // severity 0 (info) intentionally excluded
     }
   }
 
-  const total = counts.critical + counts.high + counts.medium + counts.low + counts.info
+  const total = counts.critical + counts.high + counts.medium + counts.low
 
   return {
     totalVulnerabilities: total,
@@ -165,7 +161,7 @@ function parseNessusCsv(content: string): NessusSummary {
     (h) => h === "host" || h === "ip" || h === "ip address" || h === "hostname"
   )
 
-  const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
+  const counts = { critical: 0, high: 0, medium: 0, low: 0 }
   const hostCounts = new Map<string, number>()
 
   for (let i = 1; i < lines.length; i++) {
@@ -178,7 +174,7 @@ function parseNessusCsv(content: string): NessusSummary {
       else if (sev === "high") counts.high++
       else if (sev === "medium") counts.medium++
       else if (sev === "low") counts.low++
-      else if (sev === "none" || sev === "info" || sev === "informational") counts.info++
+      // info/none intentionally excluded
     }
 
     if (hostIdx >= 0) {
@@ -195,7 +191,7 @@ function parseNessusCsv(content: string): NessusSummary {
     .slice(0, 5)
     .map(([host]) => host)
 
-  const total = counts.critical + counts.high + counts.medium + counts.low + counts.info
+  const total = counts.critical + counts.high + counts.medium + counts.low
 
   return {
     totalVulnerabilities: total,

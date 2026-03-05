@@ -58,7 +58,6 @@ interface ReportSummary {
   high: number
   medium: number
   low: number
-  info: number
   topHosts: string[]
   pdfSummary?: string
 }
@@ -119,12 +118,11 @@ function SummaryTile({ report, summary, onClose }: {
         {hasSeverityCounts && (
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">Vulnerability Breakdown</p>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <SeverityCount label="Critical" count={summary.critical} color="bg-red-500" />
               <SeverityCount label="High" count={summary.high} color="bg-orange-500" />
               <SeverityCount label="Medium" count={summary.medium} color="bg-yellow-500" />
               <SeverityCount label="Low" count={summary.low} color="bg-blue-500" />
-              <SeverityCount label="Info" count={summary.info} color="bg-gray-400" />
             </div>
             {summary.totalVulnerabilities > 0 && (
               <p className="text-xs text-muted-foreground mt-2">
@@ -187,17 +185,16 @@ function TrendChart({ reports, onClose }: { reports: NessusReport[]; onClose: ()
       if (!summary) return null
       return {
         date: r.scanDate,
-        label: new Date(r.scanDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" }),
+        label: new Date(r.scanDate).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
         Critical: summary.critical,
         High: summary.high,
         Medium: summary.medium,
         Low: summary.low,
-        Info: summary.info,
       }
     })
     .filter(Boolean)
     .sort((a, b) => a!.date.localeCompare(b!.date)) as {
-    date: string; label: string; Critical: number; High: number; Medium: number; Low: number; Info: number
+    date: string; label: string; Critical: number; High: number; Medium: number; Low: number
   }[]
 
   return (
@@ -239,7 +236,6 @@ function TrendChart({ reports, onClose }: { reports: NessusReport[]; onClose: ()
               <Line type="monotone" dataKey="High" stroke="#f97316" strokeWidth={2} dot={{ r: 4 }} name="High" />
               <Line type="monotone" dataKey="Medium" stroke="#eab308" strokeWidth={2} dot={{ r: 4 }} name="Medium" />
               <Line type="monotone" dataKey="Low" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} name="Low" />
-              <Line type="monotone" dataKey="Info" stroke="#6b7280" strokeWidth={1} dot={{ r: 3 }} name="Info" strokeDasharray="4 2" />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -264,9 +260,11 @@ export function NessusReports({ organizations = [], selectedOrg = "all" }: Nessu
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null)
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const now = new Date()
   const [uploadForm, setUploadForm] = useState({
     displayName: "",
-    scanDate: new Date().toISOString().split("T")[0],
+    scanMonth: String(now.getMonth() + 1),
+    scanYear: String(now.getFullYear()),
     orgName: selectedOrg !== "all" ? selectedOrg : "",
   })
 
@@ -315,7 +313,8 @@ export function NessusReports({ organizations = [], selectedOrg = "all" }: Nessu
       const formData = new FormData()
       formData.append("file", file)
       formData.append("displayName", uploadForm.displayName)
-      formData.append("scanDate", uploadForm.scanDate)
+      const scanDate = `${uploadForm.scanYear}-${uploadForm.scanMonth.padStart(2, "0")}-01`
+      formData.append("scanDate", scanDate)
       if (uploadForm.orgName) {
         formData.append("orgName", uploadForm.orgName)
       }
@@ -335,7 +334,8 @@ export function NessusReports({ organizations = [], selectedOrg = "all" }: Nessu
       setUploadDialogOpen(false)
       setUploadForm({
         displayName: "",
-        scanDate: new Date().toISOString().split("T")[0],
+        scanMonth: String(now.getMonth() + 1),
+        scanYear: String(now.getFullYear()),
         orgName: selectedOrg !== "all" ? selectedOrg : "",
       })
       if (fileInputRef.current) {
@@ -513,16 +513,39 @@ export function NessusReports({ organizations = [], selectedOrg = "all" }: Nessu
                       </div>
                     )}
                     <div className="space-y-2">
-                      <Label htmlFor="scanDate">Scan Date</Label>
-                      <Input
-                        id="scanDate"
-                        type="date"
-                        value={uploadForm.scanDate}
-                        onChange={(e) =>
-                          setUploadForm({ ...uploadForm, scanDate: e.target.value })
-                        }
-                        required
-                      />
+                      <Label>Scan Month</Label>
+                      <div className="flex gap-2">
+                        <Select
+                          value={uploadForm.scanMonth}
+                          onValueChange={(value) =>
+                            setUploadForm({ ...uploadForm, scanMonth: value })
+                          }
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, i) => (
+                              <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={uploadForm.scanYear}
+                          onValueChange={(value) =>
+                            setUploadForm({ ...uploadForm, scanYear: value })
+                          }
+                        >
+                          <SelectTrigger className="w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map((y) => (
+                              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="file">Report File</Label>
@@ -676,7 +699,7 @@ export function NessusReports({ organizations = [], selectedOrg = "all" }: Nessu
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3 text-gray-400" />
-                            {formatDate(report.scanDate)}
+                            {new Date(report.scanDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                           </div>
                         </TableCell>
                         <TableCell>{report.uploadedByName}</TableCell>
